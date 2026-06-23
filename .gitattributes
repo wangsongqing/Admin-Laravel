@@ -1,0 +1,48 @@
+# 默认自动识别文本文件，统一签入为 LF（防止 Windows 贡献者引入 CRLF）
+* text=auto eol=lf
+
+# 明确文本类型用 LF
+*.php        text eol=lf
+*.blade.php  text eol=lf
+*.vue        text eol=lf
+*.js         text eol=lf
+*.ts         text eol=lf
+*.jsx        text eol=lf
+*.tsx        text eol=lf
+*.css        text eol=lf
+*.scss       text eol=lf
+*.html       text eol=lf
+*.json       text eol=lf
+*.md         text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.xml        text eol=lf
+*.sh         text eol=lf
+*.env*       text eol=lf
+*.lock       text eol=lf
+
+# 二进制文件：禁止 git 做换行符 / 内容转换
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.svg   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.otf   binary
+*.mp4   binary
+*.webm  binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.key   binary
+
+# git archive 导出包时排除这些非运行时文件
+.gitattributes export-ignore
+.gitignore     export-ignore
+.editorconfig  export-ignore
+*.md           export-ignore
+backend/tests  export-ignore
