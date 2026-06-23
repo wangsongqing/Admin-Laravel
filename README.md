@@ -3,7 +3,7 @@
 前后端分离的后台管理系统：
 - **后端** `backend/`：Laravel 10（API only），**Laravel Passport**（OAuth2 Password Grant）认证 + **spatie/laravel-permission** RBAC 权限
 - **前端** `frontend/`：Vue 3 + Vite + Element Plus + Pinia + Vue Router
-- 登录方式：**手机号 + 密码**（照搬 `/Users/songsong/development/PHP/backend` 的方案）
+- 登录方式：**手机号 + 密码**
 
 ## 技术栈
 
@@ -124,7 +124,6 @@ npm run dev
 - 加新模块权限：① seeder 里加 permission；② 路由挂 `role_or_permission:xxx`；③ 前端路由 `meta.permission` + 按钮 `v-permission`
 
 ## 关键改动记录
-- 认证由 Sanctum 改为 **Passport**；登录字段由 email 改为 **phone**。
 - **Passport 12 默认关闭 password grant**，必须在 `AuthServiceProvider::boot` 调 `Passport::enablePasswordGrant()`，否则登录报 `unsupported_grant_type`。
 - 纯 API 后端的 401 需覆写 `app/Exceptions/Handler::unauthenticated()` 直接返回 401 JSON。
 
