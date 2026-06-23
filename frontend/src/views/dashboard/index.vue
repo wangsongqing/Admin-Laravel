@@ -26,7 +26,7 @@ const userStore = useUserStore()
       <el-col :span="8">
         <el-card shadow="hover">
           <div class="stat-label">鉴权方案</div>
-          <div class="stat-value">Sanctum</div>
+          <div class="stat-value">Passport</div>
         </el-card>
       </el-col>
     </el-row>

@@ -57,6 +57,19 @@ class RoleService
     }
 
     /**
+     * 角色字典（id + name），供用户编辑界面下拉选择。
+     */
+    public function roleOptions(): array
+    {
+        return [
+            'list' => $this->roleRepository->allRoles()
+                ->map(fn ($r) => ['id' => $r->id, 'name' => $r->name])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
      * 新建角色并同步权限。spatie syncPermissions 会自动清权限缓存。
      *
      * @param array{name: string, permissions?: string[]} $data

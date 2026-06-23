@@ -27,7 +27,7 @@ class AccessTokenRepository
             ->first();
 
         if (!$client) {
-            throw new RuntimeException('未找到 password grant 客户端，请先执行 php artisan passport:install --password');
+            throw new RuntimeException('未找到 password grant 客户端，请先执行 php artisan passport:install（或 php artisan passport:client --password 单独创建）');
         }
 
         return $client;

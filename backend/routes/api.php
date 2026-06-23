@@ -28,9 +28,17 @@ Route::prefix('auth')->group(function () {
 
 // 受保护业务路由：auth:api（passport）+ role_or_permission 权限校验
 
-// 用户管理
+// 用户管理：读
 Route::middleware(['auth:api', 'role_or_permission:system_user_read'])->group(function () {
     Route::get('users', [UserController::class, 'index']);
+    // 字典接口放在 {id} 之前，避免被通配匹配
+    Route::get('users/role-options', [UserController::class, 'roleOptions']);
+});
+
+// 用户管理：写
+Route::middleware(['auth:api', 'role_or_permission:system_user_write'])->group(function () {
+    Route::post('users', [UserController::class, 'store']);
+    Route::put('users/{id}', [UserController::class, 'update']);
 });
 
 // 角色管理：读

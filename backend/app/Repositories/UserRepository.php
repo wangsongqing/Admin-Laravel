@@ -26,11 +26,39 @@ class UserRepository extends BaseRepository
                 // 外层 where 闭包，避免 orWhere 污染后续条件
                 $q->where(function ($q) use ($keyword) {
                     $q->where('name', 'like', '%'.$keyword.'%')
+                        ->orWhere('phone', 'like', '%'.$keyword.'%')
                         ->orWhere('email', 'like', '%'.$keyword.'%');
                 });
             })
+            ->with('roles:id,name')
             ->orderByDesc('id')
             ->paginate($pageSize, ['*'], 'page', $page);
+    }
+
+    /**
+     * 手机号是否已被占用（可排除自身用于编辑场景）。
+     */
+    public function existsByPhone(string $phone, ?int $excludeId = null): bool
+    {
+        return $this->query()
+            ->where('phone', $phone)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
+    }
+
+    /**
+     * 邮箱是否已被占用（空值视为未占用，允许多个 null）。
+     */
+    public function existsByEmail(?string $email, ?int $excludeId = null): bool
+    {
+        if (blank($email)) {
+            return false;
+        }
+
+        return $this->query()
+            ->where('email', $email)
+            ->when($excludeId, fn ($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
     }
 
     /**

@@ -80,4 +80,17 @@ class RoleRepository extends BaseRepository
             ->orderBy('id')
             ->get(['id', 'name']);
     }
+
+    /**
+     * 全部角色字典（限 api guard），供用户编辑界面下拉选择。
+     *
+     * @return Collection<int, Role>
+     */
+    public function allRoles(): Collection
+    {
+        return $this->query()
+            ->where('guard_name', 'api')
+            ->orderBy('id')
+            ->get(['id', 'name']);
+    }
 }

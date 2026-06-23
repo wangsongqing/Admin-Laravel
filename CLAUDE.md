@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 后端（`cd backend`）：
 - 启动：`php artisan serve --host=127.0.0.1 --port=8000`
 - 迁移：`php artisan migrate`；迁移+种子：`php artisan migrate --seed`
-- 仅重跑种子（幂等，见下）：`php artisan db:seed --class=DatabaseSeeder`
+- 重跑种子（幂等，权限定义在 `config/rbac.php`，见坑 #1）：`php artisan db:seed`
 - 完全重置：`php artisan migrate:fresh --seed && php artisan passport:install --no-interaction`
 - 测试：`php artisan test`（= `vendor/bin/phpunit`）；单个测试：`php artisan test --filter=ExampleTest`
 - 格式化：`vendor/bin/pint`（无 pint.json，用默认预设）
@@ -43,6 +43,7 @@ Controller → Service → Repository。
 - 所有 Repository 继承 `App\Repositories\BaseRepository`（提供 `query/findById/findOneBy/findManyBy/paginate/create/update/delete` + `applyWhere`），子类只需实现 `modelClass()` 返回 Model FQCN。
 - 依赖注入用**具体类**，未用接口绑定（直接 inject Repository 类，非 Contract）。
 - 新增业务模块的标准样板：`Http/Resources/XxxResource` + `Repositories/XxxRepository` + `Services/XxxService` + `Http/Controllers/Api/V1/XxxController` + `routes/api.php`。
+- 赋权：给用户赋角色用 `$user->syncRoles()`、给角色赋权限用 `$role->syncPermissions()`（spatie API，自动清权限缓存）；唯一性查重放 Service 层（Repository 查 + 抛 `ValidationException`），不要在 Controller 用 `unique` 规则。
 
 ### 认证
 
@@ -72,10 +73,12 @@ Controller → Service → Repository。
 ## 容易踩的坑（务必注意）
 
 1. **新增功能模块时，权限必须三处同步**，否则连 admin 也进不去新页面（后端无兜底）：
-   - `database/seeders/DatabaseSeeder.php` 的 `$permissions` 数组加新权限 → 重跑 `php artisan db:seed --class=DatabaseSeeder`。该 seeder 幂等（`firstOrCreate` 权限 + admin `syncPermissions` 全部 api 权限 + `updateOrCreate` 超管账号），重跑安全、不破坏其他数据。
+   - `config/rbac.php` 的 `permissions` 数组加新权限 → 重跑 `php artisan db:seed`（默认入口 `DatabaseSeeder` 委托 `PermissionSeeder`，幂等：`firstOrCreate` 权限 + admin `syncPermissions` 全部 api 权限 + `updateOrCreate` 超管账号，重跑安全、不破坏其他数据）。
    - 路由挂 `role_or_permission:xxx`（读/写可分组）。
    - 前端路由 `meta.permission` + 按钮 `v-permission`。
-2. **Passport 12 默认关闭 password grant**——必须在 `AuthServiceProvider::boot` 调 `Passport::enablePasswordGrant()`，否则登录报 `unsupported_grant_type`。
+2. **Passport 12 两个要点**：
+   - 默认关闭 password grant，必须在 `AuthServiceProvider::boot` 调 `Passport::enablePasswordGrant()`，否则登录报 `unsupported_grant_type`。
+   - 新克隆 / 重置后端必须 `php artisan passport:install`（生成密钥 **且** 创建 password client）。光跑 `passport:keys` 只生成密钥不建 client，登录时 `AccessTokenRepository::getPasswordClient()` 会抛 `RuntimeException`。顺序：先 `migrate`（才有 `oauth_clients` 表）再 `passport:install`。
 3. **纯 API 后端的 401**：已覆写 `app/Exceptions/Handler::unauthenticated()` 直接返回 JSON 401。若改回默认行为，未登录请求会因尝试 session 重定向而 500。
 4. **登录凭证错误是 HTTP 400（OAuth `invalid_grant`）而不是 401**——前端拦截器对 `/auth/login` 的 400/401 统一提示「账号或密码错误」，不要只按 401 处理。
 5. **本机无 mysql CLI**，查库走 PHP/PDO（见「数据库」）。
@@ -88,9 +91,11 @@ Controller → Service → Repository。
 - `routes/api.php` —— 路由 + 权限中间件分组
 - `app/Providers/AuthServiceProvider.php` —— `enablePasswordGrant` + token 过期
 - `app/Exceptions/Handler.php` —— 401 JSON 覆写
-- `database/seeders/DatabaseSeeder.php` —— 权限项 / admin 角色 / 超管账号（加新权限的唯一入口）
+- `config/rbac.php` —— 系统权限项定义（加新权限的唯一入口）
+- `database/seeders/PermissionSeeder.php` —— 权限 / admin 角色 / 超管账号种子（`DatabaseSeeder` 为默认入口调用它）
 - `config/auth.php` —— `api` guard = passport
 - `app/Repositories/BaseRepository.php` —— Repository 基类，新模块照此继承
+- `app/Services/{UserService,RoleService}.php` —— 业务编排代表；赋权见 `syncRoles` / `syncPermissions`
 
 前端：
 - `src/api/request.js` —— 信封解包 / 401·403·422 拦截

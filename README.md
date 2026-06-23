@@ -49,14 +49,27 @@ Admin/
 - Node 18+、npm
 - 本地 MySQL（已建库 `ai_test`，账号 root / 密码 root）
 
-### 1. 启动后端（:8000）
+### 1. 后端（:8000）
+
+首次初始化（新克隆仓库时执行一次）：
+```bash
+cd backend
+composer install
+cp .env.example .env              # 然后编辑 .env：DB_DATABASE/USERNAME/PASSWORD（本机 root/root/ai_test）
+php artisan key:generate          # 生成 APP_KEY
+php artisan migrate --seed        # 建表 + 权限/admin 角色/超管账号
+php artisan passport:install      # 生成 OAuth 密钥 + password grant client（登录换 token 必需）
+```
+> 顺序重要：必须先 `migrate`（才有 oauth_clients 表），再 `passport:install`（往里写入 password client）。
+> 光跑 `passport:keys` 不够——它只生成密钥对、不建 client；本项目用 password grant，故需 `passport:install`。
+
+启动开发服务器：
 ```bash
 cd backend
 php artisan serve --host=127.0.0.1 --port=8000
 ```
-> 数据库、Passport 密钥、password client、权限/角色/账号均已 migrate + seed 完成。
 
-如需完全重置：
+如需完全重置（清库重来）：
 ```bash
 php artisan migrate:fresh --seed
 php artisan passport:install --no-interaction   # 重新生成密钥与 password client
