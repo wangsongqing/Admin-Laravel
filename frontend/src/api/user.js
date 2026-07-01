@@ -15,7 +15,12 @@ export function createUser(data) {
   return request({ url: '/users', method: 'post', data })
 }
 
-// 更新用户（资料 + 角色）
+// 更新用户（资料 + 角色 + 状态）
 export function updateUser(id, data) {
   return request({ url: `/users/${id}`, method: 'put', data })
+}
+
+// 切换用户启用/停用状态
+export function toggleUserStatus(id, status) {
+  return request({ url: `/users/${id}/toggle-status`, method: 'patch', data: { status } })
 }

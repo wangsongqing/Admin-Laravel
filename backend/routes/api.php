@@ -39,6 +39,8 @@ Route::middleware(['auth:api', 'role_or_permission:system_user_read'])->group(fu
 Route::middleware(['auth:api', 'role_or_permission:system_user_write'])->group(function () {
     Route::post('users', [UserController::class, 'store']);
     Route::put('users/{id}', [UserController::class, 'update']);
+    // toggle-status 放在 {id} 路由之前，避免被 {id} 通配匹配
+    Route::patch('users/{id}/toggle-status', [UserController::class, 'toggleStatus']);
 });
 
 // 角色管理：读

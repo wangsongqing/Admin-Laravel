@@ -29,6 +29,7 @@ class User extends Authenticatable
         'phone',
         'email',
         'password',
+        'status',
     ];
 
     /**
@@ -48,7 +49,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+        'password'          => 'hashed',
+        'status'            => 'boolean',
     ];
 
     /**
@@ -61,9 +63,14 @@ class User extends Authenticatable
 
     /**
      * Passport 密码校验（bcrypt）。
+     * 停用用户（status=0）直接返回 false，与密码错误合并为同一个 400 响应。
      */
     public function validateForPassportPasswordGrant(string $password): bool
     {
+        if (! $this->status) {
+            return false;
+        }
+
         if (Hash::check($password, $this->password)) {
             return true;
         }

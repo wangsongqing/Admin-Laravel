@@ -17,7 +17,7 @@ class UserController extends Controller
     }
 
     /**
-     * 用户列表（分页 + 关键词搜索）。
+     * 用户列表（分页 + 关键词搜索 + 状态筛选）。
      */
     public function index(Request $request)
     {
@@ -44,18 +44,19 @@ class UserController extends Controller
             'password'  => ['required', 'string', 'min:6', 'max:32'],
             'roleIds'   => ['nullable', 'array'],
             'roleIds.*' => ['integer'],
+            'status'    => ['sometimes', 'boolean'],
         ], [
             'phone.required' => '手机号不能为空',
             'phone.regex'    => '手机号格式错误',
         ]);
 
-        $user = $this->userService->createUser($request->only('name', 'phone', 'email', 'password', 'roleIds'));
+        $user = $this->userService->createUser($request->only('name', 'phone', 'email', 'password', 'roleIds', 'status'));
 
         return $this->success(new UserResource($user), '创建成功');
     }
 
     /**
-     * 更新用户（资料 + 角色）。
+     * 更新用户（资料 + 角色 + 状态）。
      */
     public function update(Request $request, int $id)
     {
@@ -66,13 +67,28 @@ class UserController extends Controller
             'password'  => ['nullable', 'string', 'min:6', 'max:32'],
             'roleIds'   => ['nullable', 'array'],
             'roleIds.*' => ['integer'],
+            'status'    => ['sometimes', 'boolean'],
         ], [
             'phone.required' => '手机号不能为空',
             'phone.regex'    => '手机号格式错误',
         ]);
 
-        $user = $this->userService->updateUser($id, $request->only('name', 'phone', 'email', 'password', 'roleIds'));
+        $user = $this->userService->updateUser($id, $request->only('name', 'phone', 'email', 'password', 'roleIds', 'status'));
 
         return $this->success(new UserResource($user), '更新成功');
+    }
+
+    /**
+     * 切换用户启用/停用状态。
+     */
+    public function toggleStatus(Request $request, int $id)
+    {
+        $request->validate([
+            'status' => ['required', 'boolean'],
+        ]);
+
+        $user = $this->userService->toggleStatusById($id, (bool) $request->input('status'));
+
+        return $this->success(new UserResource($user), '操作成功');
     }
 }

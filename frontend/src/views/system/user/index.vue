@@ -1,11 +1,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getUserList,
   getRoleOptions,
   createUser,
   updateUser,
+  toggleUserStatus,
 } from '@/api/user'
 
 const formRef = ref()
@@ -14,7 +15,7 @@ const state = reactive({
   list: [],
   total: 0,
   loading: false,
-  query: { keyword: '', page: 1, pageSize: 10 },
+  query: { keyword: '', status: '', page: 1, pageSize: 10 },
 
   // 角色字典（编辑界面下拉来源）
   roleOptions: [],
@@ -30,6 +31,7 @@ const state = reactive({
     email: '',
     password: '',
     roleIds: [],
+    status: true,
   },
 })
 
@@ -86,6 +88,7 @@ function openCreate() {
     email: '',
     password: '',
     roleIds: [],
+    status: true,
   }
   state.dialogVisible = true
   fetchRoleOptions()
@@ -101,6 +104,7 @@ function openEdit(row) {
     email: row.email || '',
     password: '', // 留空表示不改
     roleIds: (row.roles || []).map((r) => r.id),
+    status: row.status ?? true,
   }
   state.dialogVisible = true
   fetchRoleOptions()
@@ -118,6 +122,7 @@ async function handleSubmit() {
     phone: state.form.phone.trim(),
     email: state.form.email?.trim() || null,
     roleIds: state.form.roleIds,
+    status: state.form.status,
   }
   if (state.form.password) payload.password = state.form.password
 
@@ -137,6 +142,27 @@ async function handleSubmit() {
   }
 }
 
+async function handleToggleStatus(row) {
+  const next = !row.status
+  const actionText = next ? '启用' : '停用'
+  try {
+    await ElMessageBox.confirm(
+      `确定要${actionText}用户「${row.name}」吗？`,
+      '提示',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return // 取消
+  }
+  try {
+    await toggleUserStatus(row.id, next)
+    ElMessage.success(`${actionText}成功`)
+    fetchData()
+  } catch (err) {
+    ElMessage.error(err.message || `${actionText}失败`)
+  }
+}
+
 onMounted(fetchData)
 </script>
 
@@ -151,6 +177,17 @@ onMounted(fetchData)
         @keyup.enter="handleSearch"
         @clear="handleSearch"
       />
+      <el-select
+        v-model="state.query.status"
+        placeholder="状态筛选"
+        style="width: 120px"
+        clearable
+        @change="handleSearch"
+      >
+        <el-option label="全部" value="" />
+        <el-option label="启用" :value="1" />
+        <el-option label="停用" :value="0" />
+      </el-select>
       <el-button type="primary" @click="handleSearch">搜索</el-button>
       <el-button
         type="success"
@@ -188,8 +225,15 @@ onMounted(fetchData)
           <span v-if="!row.roles?.length" class="muted">—</span>
         </template>
       </el-table-column>
+      <el-table-column label="状态" width="90">
+        <template #default="{ row }">
+          <el-tag :type="row.status ? 'success' : 'danger'" size="small">
+            {{ row.status ? '启用' : '停用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="100" fixed="right">
+      <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <el-button
             v-permission="'system_user_write'"
@@ -198,6 +242,14 @@ onMounted(fetchData)
             @click="openEdit(row)"
           >
             编辑
+          </el-button>
+          <el-button
+            v-permission="'system_user_write'"
+            link
+            :type="row.status ? 'danger' : 'success'"
+            @click="handleToggleStatus(row)"
+          >
+            {{ row.status ? '停用' : '启用' }}
           </el-button>
         </template>
       </el-table-column>
@@ -242,6 +294,15 @@ onMounted(fetchData)
             show-password
             :placeholder="state.dialogMode === 'create' ? '6-32 位' : '留空表示不修改'"
             maxlength="32"
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch
+            v-model="state.form.status"
+            :active-value="true"
+            :inactive-value="false"
+            active-text="启用"
+            inactive-text="停用"
           />
         </el-form-item>
         <el-form-item label="角色">

@@ -14,6 +14,7 @@ class UserResource extends JsonResource
             'name'       => $this->name,
             'phone'      => $this->phone,
             'email'      => $this->email,
+            'status'     => (bool) $this->status,
             'roles'      => $this->whenLoaded('roles', fn () => $this->roles->map(fn ($r) => ['id' => $r->id, 'name' => $r->name])->values()),
             'created_at' => $this->created_at?->toDateTimeString(),
         ];

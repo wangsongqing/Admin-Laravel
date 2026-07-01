@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Repositories\AccessTokenRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,19 +18,22 @@ class UserService
 {
     public function __construct(
         protected UserRepository $userRepository,
+        protected AccessTokenRepository $accessTokenRepository,
     ) {
     }
 
     /**
-     * 用户列表：分页 + 关键词搜索，组装成前端需要的 {list, total, page, pageSize}。
+     * 用户列表：分页 + 关键词搜索 + 状态筛选，组装成前端需要的 {list, total, page, pageSize}。
      */
     public function listUsers(Request $request): array
     {
         $page = (int) $request->input('page', 1);
         $pageSize = (int) $request->input('pageSize', 10);
         $keyword = $request->input('keyword');
+        $status = $request->input('status');
+        $status = $status !== null && $status !== '' ? (int) $status : null;
 
-        $paginator = $this->userRepository->paginateWithSearch($page, $pageSize, $keyword);
+        $paginator = $this->userRepository->paginateWithSearch($page, $pageSize, $keyword, $status);
 
         return [
             'list' => UserResource::collection($paginator->items()),
@@ -42,7 +46,7 @@ class UserService
     /**
      * 新建用户。手机号 / 邮箱唯一校验，密码由 User 模型 cast 自动 hash，可同步分配角色。
      *
-     * @param array{name: string, phone: string, email?: ?string, password: string, roleIds?: int[]} $data
+     * @param array{name: string, phone: string, email?: ?string, password: string, roleIds?: int[], status?: bool} $data
      */
     public function createUser(array $data): User
     {
@@ -63,6 +67,7 @@ class UserService
                 'phone'    => $phone,
                 'email'    => $email !== '' ? $email : null,
                 'password' => $data['password'],
+                'status'   => (bool) ($data['status'] ?? true),
             ]);
 
             if (!empty($data['roleIds'])) {
@@ -105,11 +110,47 @@ class UserService
             if (!empty($data['password'])) {
                 $update['password'] = $data['password'];
             }
+            if (array_key_exists('status', $data)) {
+                $update['status'] = (bool) $data['status'];
+            }
             $this->userRepository->update($id, $update);
 
             $user = $this->userRepository->findById($id);
             if (array_key_exists('roleIds', $data)) {
                 $user->syncRoles($data['roleIds']);
+            }
+
+            return $user->fresh('roles');
+        });
+    }
+
+    /**
+     * 切换用户启用/停用状态。查用户、校验 admin、切换状态、撤销 token 全部在此编排。
+     *
+     * @param int $id 用户 id
+     * @param bool $targetStatus 目标状态：true 启用，false 停用
+     *
+     * @throws ValidationException 用户不存在 / admin 不允许停用
+     */
+    public function toggleStatusById(int $id, bool $targetStatus): User
+    {
+        $user = $this->userRepository->findById($id);
+        if (! $user) {
+            throw ValidationException::withMessages(['user' => '用户不存在']);
+        }
+
+        // 保护 admin 角色账号：禁止停用
+        if (! $targetStatus && $user->hasRole('admin')) {
+            throw ValidationException::withMessages(['status' => 'admin 账号不允许停用']);
+        }
+
+        return DB::transaction(function () use ($user, $targetStatus) {
+            $user->status = $targetStatus;
+            $user->save();
+
+            // 停用时撤销全部 access token，强制下线
+            if (! $targetStatus) {
+                $this->accessTokenRepository->revokeAllByUser($user->id);
             }
 
             return $user->fresh('roles');

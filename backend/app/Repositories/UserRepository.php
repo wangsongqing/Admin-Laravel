@@ -17,9 +17,9 @@ class UserRepository extends BaseRepository
     }
 
     /**
-     * 分页 + 关键词搜索（name 或 email 模糊匹配），按 id 倒序。
+     * 分页 + 关键词搜索（name/phone/email 模糊匹配）+ 状态筛选，按 id 倒序。
      */
-    public function paginateWithSearch(int $page, int $pageSize, ?string $keyword): LengthAwarePaginator
+    public function paginateWithSearch(int $page, int $pageSize, ?string $keyword, ?int $status = null): LengthAwarePaginator
     {
         return $this->query()
             ->when(filled($keyword), function ($q) use ($keyword) {
@@ -30,6 +30,7 @@ class UserRepository extends BaseRepository
                         ->orWhere('email', 'like', '%'.$keyword.'%');
                 });
             })
+            ->when(filled($status), fn ($q) => $q->where('status', $status))
             ->with('roles:id,name')
             ->orderByDesc('id')
             ->paginate($pageSize, ['*'], 'page', $page);
